@@ -19,10 +19,27 @@
 </head>
 <body>
     <h1>🎮 PS Rental Monitor</h1>
+    <div style="text-align: center; margin-bottom: 20px;">
+        <span id="currentTime" style="font-size: 18px; font-weight: bold;"></span>
+    </div>
     <div id="tvGrid" class="tv-grid"></div>
 
     <script>
-        let ws;
+        let serverTimeOffset = 0;
+        
+        function syncServerTime() {
+            fetch('/api/time')
+                .then(r => r.json())
+                .then(data => {
+                    const serverTime = data.time * 1000;
+                    const clientTime = Date.now();
+                    serverTimeOffset = serverTime - clientTime;
+                });
+        }
+        
+        function getServerTime() {
+            return new Date(Date.now() + serverTimeOffset);
+        }
         
         function connectWebSocket() {
             ws = new WebSocket(`ws://${window.location.host}/ws`);
@@ -35,16 +52,27 @@
             };
         }
 
+        let ws;
+        
         function updateDisplay(tvs) {
             const grid = document.getElementById('tvGrid');
             grid.innerHTML = tvs.map(tv => {
                 let timeInfo = '';
                 if (tv.status === 'playing' && tv.end_time) {
+                    const startTime = new Date(tv.start_time);
                     const endTime = new Date(tv.end_time);
+                    // Convert UTC to local time by subtracting 7 hours
+                    const localStartTime = new Date(startTime.getTime() - (7 * 60 * 60 * 1000));
+                    const localEndTime = new Date(endTime.getTime() - (7 * 60 * 60 * 1000));
                     const now = new Date();
-                    const remaining = Math.max(0, Math.floor((endTime - now) / 1000 / 60));
+                    // Add 7 hours to now to match server timezone
+                    const serverNow = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+                    const remainingMs = Math.max(0, endTime - serverNow);
+                    const remaining = Math.floor(remainingMs / 1000 / 60);
+                    
                     timeInfo = `
-                        <div class="time-info">Berakhir: ${endTime.toLocaleTimeString()}</div>
+                        <div class="time-info">Mulai: ${localStartTime.toLocaleTimeString()}</div>
+                        <div class="time-info">Berakhir: ${localEndTime.toLocaleTimeString()}</div>
                         <div class="countdown">Sisa: ${remaining} menit</div>
                     `;
                 }
@@ -61,15 +89,53 @@
             }).join('');
         }
 
+        function updateCountdowns() {
+            const cards = document.querySelectorAll('.tv-card');
+            cards.forEach((card, index) => {
+                const countdown = card.querySelector('.countdown');
+                if (countdown) {
+                    const tvName = card.querySelector('.tv-name').textContent;
+                    // Update countdown setiap detik tanpa reload data
+                    fetch('/api/tvs')
+                        .then(r => r.json())
+                        .then(tvs => {
+                            const tv = tvs.find(t => t.name === tvName);
+                            if (tv && tv.status === 'playing') {
+                                const endTime = new Date(tv.end_time);
+                                const now = new Date();
+                                // Add 7 hours to now to match server timezone
+                                const serverNow = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+                                const remainingMs = Math.max(0, endTime - serverNow);
+                                const remaining = Math.floor(remainingMs / 1000 / 60);
+                                countdown.textContent = `Sisa: ${remaining} menit`;
+                                
+                                if (remaining === 0) {
+                                    loadTVs(); // Reload jika waktu habis
+                                }
+                            }
+                        });
+                }
+            });
+        }
+
         function loadTVs() {
             fetch('/api/tvs')
                 .then(r => r.json())
                 .then(updateDisplay);
         }
 
+        function updateCurrentTime() {
+            document.getElementById('currentTime').textContent = new Date().toLocaleTimeString();
+        }
+        
+        syncServerTime();
         connectWebSocket();
         loadTVs();
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000);
+        setInterval(updateCountdowns, 1000);
         setInterval(loadTVs, 30000);
+        setInterval(syncServerTime, 60000); // Sync setiap menit
     </script>
 </body>
 </html>

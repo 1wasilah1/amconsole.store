@@ -59,21 +59,6 @@ func initDB() {
 	if err = db.Ping(); err != nil {
 		log.Fatal("Failed to ping database:", err)
 	}
-
-	// Create table
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS tvs (
-			id SERIAL PRIMARY KEY,
-			name VARCHAR(100) NOT NULL,
-			status VARCHAR(20) DEFAULT 'ready',
-			start_time TIMESTAMP,
-			duration INTEGER DEFAULT 0,
-			end_time TIMESTAMP
-		)
-	`)
-	if err != nil {
-		log.Fatal("Failed to create table:", err)
-	}
 	
 	log.Println("Database connected successfully")
 }
@@ -100,6 +85,7 @@ func main() {
 	// Public routes
 	r.GET("/", publicPage)
 	r.GET("/api/tvs", getTVs)
+	r.GET("/api/time", getServerTime)
 	r.GET("/ws", websocketHandler)
 
 	port := os.Getenv("PORT")
@@ -125,6 +111,18 @@ func adminLogin(c *gin.Context) {
 		return
 	}
 	
+	// Check database first
+	var dbPassword string
+	err := db.QueryRow("SELECT password FROM admins WHERE username = $1", creds.Username).Scan(&dbPassword)
+	if err == nil && creds.Password == dbPassword {
+		sessionID := strconv.FormatInt(time.Now().UnixNano(), 36)
+		adminSessions[sessionID] = true
+		c.SetCookie("admin_session", sessionID, 3600*8, "/", "", false, true)
+		c.JSON(200, gin.H{"success": true})
+		return
+	}
+	
+	// Fallback to env variables
 	if creds.Username == adminUsername && creds.Password == adminPassword {
 		sessionID := strconv.FormatInt(time.Now().UnixNano(), 36)
 		adminSessions[sessionID] = true
@@ -161,6 +159,10 @@ func requireAuth(c *gin.Context) {
 	c.Next()
 }
 
+func getServerTime(c *gin.Context) {
+	c.JSON(200, gin.H{"time": time.Now().Unix()})
+}
+
 func publicPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "public.html", nil)
 }
@@ -184,12 +186,25 @@ func addTV(c *gin.Context) {
 
 func startTV(c *gin.Context) {
 	id := c.Param("id")
-	duration, _ := strconv.Atoi(c.PostForm("duration"))
+	hours, _ := strconv.Atoi(c.PostForm("duration"))
+	duration := hours * 60 // Convert jam ke menit
 	
-	startTime := time.Now()
-	endTime := startTime.Add(time.Duration(duration) * time.Minute)
+	// Use time from frontend if provided, otherwise server time
+	startTimeStr := c.PostForm("start_time")
+	endTimeStr := c.PostForm("end_time")
+	
+	var startTime, endTime time.Time
+	var err error
+	
+	if startTimeStr != "" && endTimeStr != "" {
+		startTime, _ = time.Parse(time.RFC3339, startTimeStr)
+		endTime, _ = time.Parse(time.RFC3339, endTimeStr)
+	} else {
+		startTime = time.Now()
+		endTime = startTime.Add(time.Duration(duration) * time.Minute)
+	}
 
-	_, err := db.Exec(`
+	_, err = db.Exec(`
 		UPDATE tvs SET status = 'playing', start_time = $1, duration = $2, end_time = $3 
 		WHERE id = $4
 	`, startTime, duration, endTime, id)
@@ -221,9 +236,10 @@ func stopTV(c *gin.Context) {
 }
 
 func getTVs(c *gin.Context) {
-	rows, err := db.Query("SELECT id, name, status, start_time, duration, end_time FROM tvs")
+	rows, err := db.Query("SELECT id, name, status, start_time, duration, end_time FROM tvs ORDER BY id")
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		log.Printf("Database query error: %v", err)
+		c.JSON(500, gin.H{"error": "Database error"})
 		return
 	}
 	defer rows.Close()
@@ -233,16 +249,19 @@ func getTVs(c *gin.Context) {
 		var tv TV
 		err := rows.Scan(&tv.ID, &tv.Name, &tv.Status, &tv.StartTime, &tv.Duration, &tv.EndTime)
 		if err != nil {
+			log.Printf("Row scan error: %v", err)
 			continue
 		}
 		
 		// Auto update status jika waktu habis
 		if tv.Status == "playing" && tv.EndTime != nil && time.Now().After(*tv.EndTime) {
-			db.Exec("UPDATE tvs SET status = 'ready', start_time = NULL, duration = 0, end_time = NULL WHERE id = $1", tv.ID)
-			tv.Status = "ready"
-			tv.StartTime = nil
-			tv.EndTime = nil
-			tv.Duration = 0
+			_, err = db.Exec("UPDATE tvs SET status = 'ready', start_time = NULL, duration = 0, end_time = NULL WHERE id = $1", tv.ID)
+			if err == nil {
+				tv.Status = "ready"
+				tv.StartTime = nil
+				tv.EndTime = nil
+				tv.Duration = 0
+			}
 		}
 		
 		tvs = append(tvs, tv)

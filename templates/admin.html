@@ -26,7 +26,10 @@
     <div id="adminPanel" class="admin-panel">
         <div class="header">
             <h1>Admin Panel - PS Rental</h1>
-            <button onclick="logout()">Logout</button>
+            <div>
+                <span id="currentTime"></span>
+                <button onclick="logout()">Logout</button>
+            </div>
         </div>
         
         <div>
@@ -35,10 +38,29 @@
             <button onclick="addTV()">Tambah TV</button>
         </div>
 
-        <div id="tvList"></div>
+        <div>
+            <h3>Daftar TV</h3>
+            <div id="tvList">Loading...</div>
+        </div>
     </div>
 
     <script>
+        let serverTimeOffset = 0;
+        
+        function syncServerTime() {
+            fetch('/api/time')
+                .then(r => r.json())
+                .then(data => {
+                    const serverTime = data.time * 1000;
+                    const clientTime = Date.now();
+                    serverTimeOffset = serverTime - clientTime;
+                });
+        }
+        
+        function getServerTime() {
+            return new Date(Date.now() + serverTimeOffset);
+        }
+        
         function checkAuth() {
             fetch('/admin/check')
                 .then(r => r.json())
@@ -83,21 +105,57 @@
         }
         function loadTVs() {
             fetch('/api/tvs')
-                .then(r => r.json())
+                .then(r => {
+                    if (!r.ok) {
+                        console.error('Failed to load TVs:', r.status);
+                        return [];
+                    }
+                    return r.json();
+                })
                 .then(tvs => {
                     const list = document.getElementById('tvList');
-                    list.innerHTML = tvs.map(tv => `
+                    if (!tvs || tvs.length === 0) {
+                        list.innerHTML = '<p>Belum ada TV yang ditambahkan</p>';
+                        return;
+                    }
+                    
+                    list.innerHTML = tvs.map(tv => {
+                        let timeInfo = '';
+                        if (tv.status === 'playing' && tv.end_time) {
+                            const startTime = new Date(tv.start_time);
+                            const endTime = new Date(tv.end_time);
+                            // Convert UTC to local time by subtracting 7 hours
+                            const localStartTime = new Date(startTime.getTime() - (7 * 60 * 60 * 1000));
+                            const localEndTime = new Date(endTime.getTime() - (7 * 60 * 60 * 1000));
+                            const now = new Date();
+                            // Add 7 hours to now to match server timezone
+                            const serverNow = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+                            const remainingMs = Math.max(0, endTime - serverNow);
+                            const remaining = Math.floor(remainingMs / 1000 / 60);
+                            
+                            timeInfo = `
+                                <p>Mulai: ${localStartTime.toLocaleTimeString()}</p>
+                                <p>Berakhir: ${localEndTime.toLocaleTimeString()}</p>
+                                <p>Sisa: ${remaining} menit</p>
+                            `;
+                        }
+                        
+                        return `
                         <div class="tv-item ${tv.status}">
                             <h4>${tv.name}</h4>
                             <p>Status: ${tv.status}</p>
-                            ${tv.status === 'playing' ? 
-                                `<p>Berakhir: ${new Date(tv.end_time).toLocaleString()}</p>` : ''}
+                            ${timeInfo}
                             ${tv.status === 'ready' ? 
-                                `<input type="number" id="duration${tv.id}" placeholder="Durasi (menit)" min="1">
+                                `<input type="number" id="duration${tv.id}" placeholder="Durasi (jam)" min="1">
                                  <button onclick="startTV(${tv.id})">Mulai</button>` :
                                 `<button onclick="stopTV(${tv.id})">Stop</button>`}
                         </div>
-                    `).join('');
+                    `;
+                    }).join('');
+                })
+                .catch(err => {
+                    console.error('Error loading TVs:', err);
+                    document.getElementById('tvList').innerHTML = '<p>Error loading TV list</p>';
                 });
         }
 
@@ -129,8 +187,14 @@
             const duration = document.getElementById(`duration${id}`).value;
             if (!duration) return;
             
+            // Use local browser time
+            const startTime = new Date();
+            const endTime = new Date(startTime.getTime() + (duration * 60 * 60 * 1000));
+            
             const formData = new FormData();
             formData.append('duration', duration);
+            formData.append('start_time', startTime.toISOString());
+            formData.append('end_time', endTime.toISOString());
             
             fetch(`/admin/tv/${id}/start`, {
                 method: 'PUT',
@@ -156,7 +220,16 @@
                 });
         }
 
-        checkAuth();
+        function updateCurrentTime() {
+            document.getElementById('currentTime').textContent = new Date().toLocaleTimeString();
+        }
+        
+        syncServerTime();
+        setTimeout(() => {
+            checkAuth();
+        }, 1000); // Wait 1 second for sync
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000);
         document.getElementById('password').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') login();
         });
