@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: amconsole
-        image: ghcr.io/1wasilah1/amconsole:latest
+        image: ${{ secrets.DOCKER_USERNAME }}/amconsole:latest
         ports:
         - containerPort: 8080
         envFrom:
