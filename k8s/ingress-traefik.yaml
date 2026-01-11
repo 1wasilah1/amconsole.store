@@ -6,7 +6,8 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
-    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    acme.cert-manager.io/http01-edit-in-place: "true"
 spec:
   tls:
   - hosts:
