@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amconsole-app
+  namespace: amconsole
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: amconsole
+  template:
+    metadata:
+      labels:
+        app: amconsole
+    spec:
+      containers:
+      - name: amconsole
+        image: ghcr.io/1wasilah1/amconsole:latest
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: amconsole-config
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
