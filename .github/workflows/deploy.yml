@@ -47,23 +47,19 @@ jobs:
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
 
-    - name: Deploy to Kubernetes
-      if: github.ref == 'refs/heads/main'
-      uses: azure/k8s-deploy@v1
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
       with:
-        method: kubectl
-        kubeconfig: ${{ secrets.KUBE_CONFIG }}
-        namespace: amconsole
-        manifests: |
-          k8s/namespace.yaml
-          k8s/configmap.yaml
-          k8s/deployment.yaml
-          k8s/service.yaml
-          k8s/ingress.yaml
+        version: 'v1.28.0'
 
-    - name: Restart deployment
+    - name: Deploy to Kubernetes
       if: github.ref == 'refs/heads/main'
       run: |
         echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
         export KUBECONFIG=kubeconfig
+        kubectl apply -f k8s/namespace.yaml
+        kubectl apply -f k8s/configmap.yaml
+        kubectl apply -f k8s/deployment.yaml
+        kubectl apply -f k8s/service.yaml
+        kubectl apply -f k8s/ingress.yaml
         kubectl rollout restart deployment/amconsole-app -n amconsole
