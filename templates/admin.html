@@ -4,25 +4,83 @@
     <title>Admin - PS Rental</title>
     <style>
         body { font-family: Arial; margin: 20px; }
+        .login-form { max-width: 300px; margin: 100px auto; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        .admin-panel { display: none; }
         .tv-item { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
         .ready { background: #d4edda; }
         .playing { background: #fff3cd; }
         button { padding: 5px 10px; margin: 5px; }
-        input { padding: 5px; margin: 5px; }
+        input { padding: 5px; margin: 5px; width: 100%; box-sizing: border-box; }
+        .header { display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body>
-    <h1>Admin Panel - PS Rental</h1>
-    
-    <div>
-        <h3>Tambah TV Baru</h3>
-        <input type="text" id="tvName" placeholder="Nama TV">
-        <button onclick="addTV()">Tambah TV</button>
+    <div id="loginForm" class="login-form">
+        <h2>Admin Login</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <div id="loginError" style="color: red; margin-top: 10px;"></div>
     </div>
 
-    <div id="tvList"></div>
+    <div id="adminPanel" class="admin-panel">
+        <div class="header">
+            <h1>Admin Panel - PS Rental</h1>
+            <button onclick="logout()">Logout</button>
+        </div>
+        
+        <div>
+            <h3>Tambah TV Baru</h3>
+            <input type="text" id="tvName" placeholder="Nama TV">
+            <button onclick="addTV()">Tambah TV</button>
+        </div>
+
+        <div id="tvList"></div>
+    </div>
 
     <script>
+        function checkAuth() {
+            fetch('/admin/check')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.authenticated) {
+                        document.getElementById('loginForm').style.display = 'none';
+                        document.getElementById('adminPanel').style.display = 'block';
+                        loadTVs();
+                    }
+                });
+        }
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            fetch('/admin/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('loginForm').style.display = 'none';
+                    document.getElementById('adminPanel').style.display = 'block';
+                    loadTVs();
+                } else {
+                    document.getElementById('loginError').textContent = 'Username atau password salah';
+                }
+            });
+        }
+
+        function logout() {
+            fetch('/admin/logout', {method: 'POST'})
+                .then(() => {
+                    document.getElementById('loginForm').style.display = 'block';
+                    document.getElementById('adminPanel').style.display = 'none';
+                    document.getElementById('username').value = '';
+                    document.getElementById('password').value = '';
+                });
+        }
         function loadTVs() {
             fetch('/api/tvs')
                 .then(r => r.json())
@@ -51,9 +109,19 @@
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({name})
-            }).then(() => {
-                document.getElementById('tvName').value = '';
-                loadTVs();
+            })
+            .then(r => {
+                if (r.status === 401) {
+                    logout();
+                    return;
+                }
+                return r.json();
+            })
+            .then(data => {
+                if (data) {
+                    document.getElementById('tvName').value = '';
+                    loadTVs();
+                }
             });
         }
 
@@ -67,16 +135,31 @@
             fetch(`/admin/tv/${id}/start`, {
                 method: 'PUT',
                 body: formData
-            }).then(() => loadTVs());
+            })
+            .then(r => {
+                if (r.status === 401) {
+                    logout();
+                    return;
+                }
+                loadTVs();
+            });
         }
 
         function stopTV(id) {
             fetch(`/admin/tv/${id}/stop`, {method: 'PUT'})
-                .then(() => loadTVs());
+                .then(r => {
+                    if (r.status === 401) {
+                        logout();
+                        return;
+                    }
+                    loadTVs();
+                });
         }
 
-        loadTVs();
-        setInterval(loadTVs, 5000);
+        checkAuth();
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') login();
+        });
     </script>
 </body>
 </html>

@@ -27,6 +27,10 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
+var adminSessions = make(map[string]bool)
+const adminUsername = "admin"
+const adminPassword = "admin123"
+
 func initDB() {
 	var err error
 	db, err = sql.Open("postgres", "postgresql://fuelfriendly:fuelfriendly123@72.61.69.116:5432/fuelfriendly")
@@ -62,9 +66,12 @@ func main() {
 
 	// Admin routes
 	r.GET("/admin", adminPage)
-	r.POST("/admin/tv", addTV)
-	r.PUT("/admin/tv/:id/start", startTV)
-	r.PUT("/admin/tv/:id/stop", stopTV)
+	r.POST("/admin/login", adminLogin)
+	r.POST("/admin/logout", adminLogout)
+	r.POST("/admin/tv", requireAuth, addTV)
+	r.PUT("/admin/tv/:id/start", requireAuth, startTV)
+	r.PUT("/admin/tv/:id/stop", requireAuth, stopTV)
+	r.GET("/admin/check", checkAuth)
 
 	// Public routes
 	r.GET("/", publicPage)
@@ -76,6 +83,53 @@ func main() {
 
 func adminPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "admin.html", nil)
+}
+
+func adminLogin(c *gin.Context) {
+	var creds struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	
+	if err := c.ShouldBindJSON(&creds); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request"})
+		return
+	}
+	
+	if creds.Username == adminUsername && creds.Password == adminPassword {
+		sessionID := strconv.FormatInt(time.Now().UnixNano(), 36)
+		adminSessions[sessionID] = true
+		c.SetCookie("admin_session", sessionID, 3600*8, "/", "", false, true)
+		c.JSON(200, gin.H{"success": true})
+	} else {
+		c.JSON(401, gin.H{"error": "Invalid credentials"})
+	}
+}
+
+func adminLogout(c *gin.Context) {
+	sessionID, _ := c.Cookie("admin_session")
+	delete(adminSessions, sessionID)
+	c.SetCookie("admin_session", "", -1, "/", "", false, true)
+	c.JSON(200, gin.H{"success": true})
+}
+
+func checkAuth(c *gin.Context) {
+	sessionID, err := c.Cookie("admin_session")
+	if err != nil || !adminSessions[sessionID] {
+		c.JSON(401, gin.H{"authenticated": false})
+		return
+	}
+	c.JSON(200, gin.H{"authenticated": true})
+}
+
+func requireAuth(c *gin.Context) {
+	sessionID, err := c.Cookie("admin_session")
+	if err != nil || !adminSessions[sessionID] {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		c.Abort()
+		return
+	}
+	c.Next()
 }
 
 func publicPage(c *gin.Context) {
