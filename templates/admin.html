@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin - PS Rental</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        .tv-item { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+        .ready { background: #d4edda; }
+        .playing { background: #fff3cd; }
+        button { padding: 5px 10px; margin: 5px; }
+        input { padding: 5px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Admin Panel - PS Rental</h1>
+    
+    <div>
+        <h3>Tambah TV Baru</h3>
+        <input type="text" id="tvName" placeholder="Nama TV">
+        <button onclick="addTV()">Tambah TV</button>
+    </div>
+
+    <div id="tvList"></div>
+
+    <script>
+        function loadTVs() {
+            fetch('/api/tvs')
+                .then(r => r.json())
+                .then(tvs => {
+                    const list = document.getElementById('tvList');
+                    list.innerHTML = tvs.map(tv => `
+                        <div class="tv-item ${tv.status}">
+                            <h4>${tv.name}</h4>
+                            <p>Status: ${tv.status}</p>
+                            ${tv.status === 'playing' ? 
+                                `<p>Berakhir: ${new Date(tv.end_time).toLocaleString()}</p>` : ''}
+                            ${tv.status === 'ready' ? 
+                                `<input type="number" id="duration${tv.id}" placeholder="Durasi (menit)" min="1">
+                                 <button onclick="startTV(${tv.id})">Mulai</button>` :
+                                `<button onclick="stopTV(${tv.id})">Stop</button>`}
+                        </div>
+                    `).join('');
+                });
+        }
+
+        function addTV() {
+            const name = document.getElementById('tvName').value;
+            if (!name) return;
+            
+            fetch('/admin/tv', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name})
+            }).then(() => {
+                document.getElementById('tvName').value = '';
+                loadTVs();
+            });
+        }
+
+        function startTV(id) {
+            const duration = document.getElementById(`duration${id}`).value;
+            if (!duration) return;
+            
+            const formData = new FormData();
+            formData.append('duration', duration);
+            
+            fetch(`/admin/tv/${id}/start`, {
+                method: 'PUT',
+                body: formData
+            }).then(() => loadTVs());
+        }
+
+        function stopTV(id) {
+            fetch(`/admin/tv/${id}/stop`, {method: 'PUT'})
+                .then(() => loadTVs());
+        }
+
+        loadTVs();
+        setInterval(loadTVs, 5000);
+    </script>
+</body>
+</html>
