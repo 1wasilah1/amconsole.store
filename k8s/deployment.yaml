@@ -15,7 +15,9 @@ spec:
     spec:
       containers:
       - name: amconsole
-        image: 1wasilah1/amconsole:latest
+        image: golang:1.21-alpine
+        command: ["/bin/sh"]
+        args: ["-c", "echo 'Temporary pod for testing' && sleep 3600"]
         ports:
         - containerPort: 8080
         envFrom:
