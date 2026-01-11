@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
@@ -28,14 +30,34 @@ var upgrader = websocket.Upgrader{
 }
 
 var adminSessions = make(map[string]bool)
-const adminUsername = "admin"
-const adminPassword = "admin123"
+var adminUsername string
+var adminPassword string
 
 func initDB() {
+	godotenv.Load()
+	
+	adminUsername = os.Getenv("ADMIN_USERNAME")
+	adminPassword = os.Getenv("ADMIN_PASSWORD")
+	if adminUsername == "" {
+		adminUsername = "admin"
+	}
+	if adminPassword == "" {
+		adminPassword = "admin123"
+	}
+
 	var err error
-	db, err = sql.Open("postgres", "postgresql://fuelfriendly:fuelfriendly123@72.61.69.116:5432/fuelfriendly")
+	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		log.Fatal("DB_URL not set in environment")
+	}
+	
+	db, err = sql.Open("postgres", dbURL)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to connect to database:", err)
+	}
+
+	if err = db.Ping(); err != nil {
+		log.Fatal("Failed to ping database:", err)
 	}
 
 	// Create table
@@ -50,8 +72,10 @@ func initDB() {
 		)
 	`)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to create table:", err)
 	}
+	
+	log.Println("Database connected successfully")
 }
 
 func main() {
@@ -78,7 +102,12 @@ func main() {
 	r.GET("/api/tvs", getTVs)
 	r.GET("/ws", websocketHandler)
 
-	r.Run(":8080")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	
+	r.Run(":" + port)
 }
 
 func adminPage(c *gin.Context) {
