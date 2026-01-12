@@ -5,9 +5,8 @@ metadata:
   namespace: amconsole
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    traefik.ingress.kubernetes.io/router.tls: "true"
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-    acme.cert-manager.io/http01-edit-in-place: "true"
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+    kubernetes.io/ingress.class: traefik
 spec:
   tls:
   - hosts:

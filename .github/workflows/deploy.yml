@@ -60,11 +60,14 @@ jobs:
         sed -i 's/127.0.0.1/72.61.69.116/g' kubeconfig
         sed -i 's/localhost/72.61.69.116/g' kubeconfig
         export KUBECONFIG=kubeconfig
-        kubectl delete deployment traefik -n kube-system || echo "Manual Traefik not found"
-        kubectl delete ingress amconsole-simple -n amconsole || echo "Simple ingress not found"
+        
+        # Deploy application
         kubectl apply -f k8s/namespace.yaml
         kubectl apply -f k8s/configmap.yaml
         kubectl apply -f k8s/deployment.yaml
         kubectl apply -f k8s/service.yaml
         kubectl apply -f k8s/ingress-traefik.yaml
+        
+        # Restart deployment to use latest image
         kubectl rollout restart deployment/amconsole-app -n amconsole
+        kubectl rollout status deployment/amconsole-app -n amconsole
