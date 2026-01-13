@@ -66,13 +66,11 @@
                 if (tv.status === 'playing' && tv.end_time) {
                     const startTime = new Date(tv.start_time);
                     const endTime = new Date(tv.end_time);
-                    // Convert UTC to local time by subtracting 7 hours
-                    const localStartTime = new Date(startTime.getTime() - (7 * 60 * 60 * 1000));
-                    const localEndTime = new Date(endTime.getTime() - (7 * 60 * 60 * 1000));
+                    // Convert UTC to local time (WIB = UTC+7)
+                    const localStartTime = new Date(startTime.getTime() + (7 * 60 * 60 * 1000));
+                    const localEndTime = new Date(endTime.getTime() + (7 * 60 * 60 * 1000));
                     const now = new Date();
-                    // Add 7 hours to now to match server timezone
-                    const serverNow = new Date(now.getTime() + (7 * 60 * 60 * 1000));
-                    const remainingMs = Math.max(0, endTime - serverNow);
+                    const remainingMs = Math.max(0, endTime - now);
                     const remaining = Math.floor(remainingMs / 1000 / 60);
                     
                     timeInfo = `
@@ -108,9 +106,7 @@
                             if (tv && tv.status === 'playing') {
                                 const endTime = new Date(tv.end_time);
                                 const now = new Date();
-                                // Add 7 hours to now to match server timezone
-                                const serverNow = new Date(now.getTime() + (7 * 60 * 60 * 1000));
-                                const remainingMs = Math.max(0, endTime - serverNow);
+                                const remainingMs = Math.max(0, endTime - now);
                                 const remaining = Math.floor(remainingMs / 1000 / 60);
                                 countdown.textContent = `Sisa: ${remaining} menit`;
                                 
