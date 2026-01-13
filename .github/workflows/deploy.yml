@@ -32,5 +32,7 @@ jobs:
         echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
         sed -i 's/127.0.0.1/72.61.69.116/g' kubeconfig
         export KUBECONFIG=kubeconfig
-        kubectl apply -f k8s/
+        kubectl apply -f k8s/configmap.yaml
+        kubectl apply -f k8s/deployment.yaml
+        kubectl apply -f k8s/service.yaml
         kubectl rollout restart deployment/amconsole -n amconsole
