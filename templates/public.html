@@ -57,6 +57,10 @@
         
         function updateDisplay(tvs) {
             const grid = document.getElementById('tvGrid');
+            if (!Array.isArray(tvs)) {
+                console.log('TVs data is not an array:', tvs);
+                return;
+            }
             grid.innerHTML = tvs.map(tv => {
                 let timeInfo = '';
                 if (tv.status === 'playing' && tv.end_time) {
@@ -121,8 +125,16 @@
 
         function loadTVs() {
             fetch('/api/tvs')
-                .then(r => r.json())
-                .then(updateDisplay);
+                .then(r => {
+                    if (!r.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return r.json();
+                })
+                .then(updateDisplay)
+                .catch(err => {
+                    console.error('Error loading TVs:', err);
+                });
         }
 
         function updateCurrentTime() {
