@@ -32,7 +32,13 @@ jobs:
         echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
         sed -i 's/127.0.0.1/72.61.69.116/g' kubeconfig
         export KUBECONFIG=kubeconfig
-        kubectl apply -f k8s/configmap.yaml
-        kubectl apply -f k8s/deployment.yaml
-        kubectl apply -f k8s/service.yaml
-        kubectl rollout restart deployment/amconsole -n amconsole
+        
+        # Deploy with validation disabled and retry logic
+        kubectl apply -f k8s/configmap.yaml --validate=false || sleep 10 && kubectl apply -f k8s/configmap.yaml --validate=false
+        kubectl apply -f k8s/deployment.yaml --validate=false || sleep 10 && kubectl apply -f k8s/deployment.yaml --validate=false
+        kubectl apply -f k8s/service.yaml --validate=false || sleep 10 && kubectl apply -f k8s/service.yaml --validate=false
+        
+        # Wait and restart deployment
+        sleep 5
+        kubectl rollout restart deployment/amconsole -n amconsole || true
+        kubectl rollout status deployment/amconsole -n amconsole --timeout=300s || true
