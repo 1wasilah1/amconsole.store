@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>PS Rental Monitor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -10,7 +11,7 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             min-height: 100vh;
             color: white;
@@ -146,8 +147,9 @@
 </head>
 <body>
     <div class="header">
-        <h1>🎮 PS Rental Monitor</h1>
+        <h1><img src="https://img.icons8.com/3d-fluency/94/controller.png" alt="controller" style="width: 60px; vertical-align: middle; margin-right: 15px;"/> PS Rental Monitor</h1>
         <div class="current-time">
+            <img src="https://img.icons8.com/3d-fluency/48/clock.png" alt="clock" style="width: 20px; vertical-align: middle; margin-right: 8px;"/>
             <span id="currentTime"></span>
         </div>
     </div>
@@ -203,9 +205,9 @@
                     const remaining = Math.floor(remainingMs / 1000 / 60);
                     
                     timeInfo = `
-                        <div class="time-info">Mulai: ${localStartTime.toLocaleTimeString()}</div>
-                        <div class="time-info">Berakhir: ${localEndTime.toLocaleTimeString()}</div>
-                        <div class="countdown">Sisa: ${remaining} menit</div>
+                        <div class="time-info"><img src="https://img.icons8.com/3d-fluency/48/play.png" alt="start" style="width: 16px; vertical-align: middle; margin-right: 6px;"/>Mulai: ${localStartTime.toLocaleTimeString()}</div>
+                        <div class="time-info"><img src="https://img.icons8.com/3d-fluency/48/stop.png" alt="end" style="width: 16px; vertical-align: middle; margin-right: 6px;"/>Berakhir: ${localEndTime.toLocaleTimeString()}</div>
+                        <div class="countdown"><img src="https://img.icons8.com/3d-fluency/48/hourglass.png" alt="remaining" style="width: 18px; vertical-align: middle; margin-right: 8px;"/>Sisa: ${remaining} menit</div>
                     `;
                 }
                 
@@ -213,7 +215,9 @@
                     <div class="tv-card ${tv.status}">
                         <div class="tv-name">${tv.name}</div>
                         <div class="status ${tv.status}-status">
-                            ${tv.status === 'ready' ? '✅ TERSEDIA' : '🎮 SEDANG BERMAIN'}
+                            ${tv.status === 'ready' ? 
+                                '<img src="https://img.icons8.com/3d-fluency/48/checkmark.png" alt="ready" style="width: 20px; vertical-align: middle; margin-right: 8px;"/>TERSEDIA' : 
+                                '<img src="https://img.icons8.com/3d-fluency/48/controller.png" alt="playing" style="width: 20px; vertical-align: middle; margin-right: 8px;"/>SEDANG BERMAIN'}
                         </div>
                         ${timeInfo}
                     </div>
