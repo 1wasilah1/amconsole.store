@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: amconsole-service
+  name: amconsole
   namespace: amconsole
 spec:
   selector:

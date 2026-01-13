@@ -1,13 +1,12 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: amconsole-ingress
+  name: amconsole
   namespace: amconsole
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    kubernetes.io/ingress.class: "traefik"
 spec:
-  ingressClassName: nginx
   tls:
   - hosts:
     - amconsole.store
@@ -20,6 +19,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: amconsole-service
+            name: amconsole
             port:
               number: 80

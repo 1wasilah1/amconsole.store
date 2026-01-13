@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: amconsole-app
+  name: amconsole
   namespace: amconsole
 spec:
   replicas: 1
@@ -21,10 +21,3 @@ spec:
         envFrom:
         - configMapRef:
             name: amconsole-config
-        resources:
-          requests:
-            memory: "32Mi"
-            cpu: "10m"
-          limits:
-            memory: "64Mi"
-            cpu: "50m"

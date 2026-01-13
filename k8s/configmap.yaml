@@ -4,7 +4,7 @@ metadata:
   name: amconsole-config
   namespace: amconsole
 data:
-  DB_URL: "postgresql://amconsole:amconsole123@72.61.69.116:5432/amconsole"
+  DB_URL: "postgresql://amconsole:amconsole123@postgres:5432/amconsole"
   ADMIN_USERNAME: "admin"
   ADMIN_PASSWORD: "admin123"
   PORT: "8080"
