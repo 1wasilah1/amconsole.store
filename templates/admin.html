@@ -124,9 +124,9 @@
                         if (tv.status === 'playing' && tv.end_time) {
                             const startTime = new Date(tv.start_time);
                             const endTime = new Date(tv.end_time);
-                            // Convert UTC to local time (WIB = UTC+7)
-                            const localStartTime = new Date(startTime.getTime() + (7 * 60 * 60 * 1000));
-                            const localEndTime = new Date(endTime.getTime() + (7 * 60 * 60 * 1000));
+                            // Use local time directly
+                            const localStartTime = new Date(startTime);
+                            const localEndTime = new Date(endTime);
                             const now = new Date();
                             const remainingMs = Math.max(0, endTime - now);
                             const remaining = Math.floor(remainingMs / 1000 / 60);
